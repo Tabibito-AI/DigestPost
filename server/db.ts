@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, userConfigs, postedTweets, InsertUserConfig, InsertPostedTweet } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,183 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+/**
+ * Get user configuration by ID
+ */
+export async function getUserConfigById(configId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user config: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(userConfigs).where(eq(userConfigs.id, configId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Get all active user configurations
+ */
+export async function getActiveUserConfigs() {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get active configs: database not available");
+    return [];
+  }
+
+  return await db.select().from(userConfigs).where(eq(userConfigs.isActive, true));
+}
+
+/**
+ * Get user configurations by user ID
+ */
+export async function getUserConfigsByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user configs: database not available");
+    return [];
+  }
+
+  return await db.select().from(userConfigs).where(eq(userConfigs.userId, userId));
+}
+
+/**
+ * Create or update user configuration
+ */
+export async function upsertUserConfig(config: InsertUserConfig) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user config: database not available");
+    return undefined;
+  }
+
+  try {
+    if (config.id) {
+      // Update existing config
+      await db.update(userConfigs).set({
+        xApiKey: config.xApiKey,
+        xApiSecret: config.xApiSecret,
+        xAccessToken: config.xAccessToken,
+        xAccessTokenSecret: config.xAccessTokenSecret,
+        isActive: config.isActive,
+        updatedAt: new Date(),
+      }).where(eq(userConfigs.id, config.id));
+      return await getUserConfigById(config.id);
+    } else {
+      // Insert new config
+      const result = await db.insert(userConfigs).values(config);
+      const insertedId = (result as any).insertId;
+      return await getUserConfigById(insertedId);
+    }
+  } catch (error) {
+    console.error("[Database] Failed to upsert user config:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete user configuration
+ */
+export async function deleteUserConfig(configId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete user config: database not available");
+    return false;
+  }
+
+  try {
+    await db.delete(userConfigs).where(eq(userConfigs.id, configId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete user config:", error);
+    throw error;
+  }
+}
+
+/**
+ * Toggle user configuration active status
+ */
+export async function toggleUserConfigActive(configId: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot toggle user config: database not available");
+    return undefined;
+  }
+
+  try {
+    await db.update(userConfigs).set({
+      isActive,
+      updatedAt: new Date(),
+    }).where(eq(userConfigs.id, configId));
+    return await getUserConfigById(configId);
+  } catch (error) {
+    console.error("[Database] Failed to toggle user config:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create posted tweet log
+ */
+export async function createPostedTweet(tweet: InsertPostedTweet) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create posted tweet: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.insert(postedTweets).values(tweet);
+    const insertedId = (result as any).insertId;
+    return await getPostedTweetById(insertedId);
+  } catch (error) {
+    console.error("[Database] Failed to create posted tweet:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get posted tweet by ID
+ */
+export async function getPostedTweetById(tweetId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get posted tweet: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(postedTweets).where(eq(postedTweets.id, tweetId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Get posted tweets by config ID with pagination
+ */
+export async function getPostedTweetsByConfigId(configId: number, limit: number = 20, offset: number = 0) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get posted tweets: database not available");
+    return [];
+  }
+
+  return await db.select()
+    .from(postedTweets)
+    .where(eq(postedTweets.configId, configId))
+    .orderBy(desc(postedTweets.postedAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * Get posted tweets count by config ID
+ */
+export async function getPostedTweetsCountByConfigId(configId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get posted tweets count: database not available");
+    return 0;
+  }
+
+  const result = await db.select({ count: postedTweets.id }).from(postedTweets).where(eq(postedTweets.configId, configId));
+  return result.length > 0 ? result[0].count : 0;
+}
