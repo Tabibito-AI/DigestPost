@@ -12,6 +12,10 @@ import {
   getPostedTweetsByConfigId,
   getPostedTweetsCountByConfigId,
 } from "./db";
+import { getRandomArticle } from "./modules/scraper";
+import { generateContent, generateFallbackTweet } from "./modules/contentGenerator";
+import { generateTweetImage } from "./modules/imageGenerator";
+import { postTweet } from "./modules/twitterPoster";
 
 export const appRouter = router({
   system: systemRouter,
@@ -113,6 +117,79 @@ export const appRouter = router({
       .input(z.object({ configId: z.number() }))
       .query(async ({ input }) => {
         return await getPostedTweetsCountByConfigId(input.configId);
+      }),
+  }),
+
+  // Manual Execution
+  manual: router({
+    /**
+     * Manually execute the posting workflow for a specific configuration
+     */
+    executePost: protectedProcedure
+      .input(z.object({ configId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          // Get the configuration
+          const config = await getUserConfigById(input.configId);
+          if (!config) {
+            throw new Error("Configuration not found");
+          }
+
+          // Get a random article
+          const article = await getRandomArticle();
+          if (!article) {
+            throw new Error("Failed to fetch article");
+          }
+
+          // Generate content
+          let content = await generateContent(article.title, article.content, article.url);
+          if (!content) {
+            content = {
+              tweetText: generateFallbackTweet(article.title),
+              imagePrompt: `A professional news illustration about: ${article.title}`,
+            };
+          }
+
+          // Generate image
+          const imageUrl = await generateTweetImage(content.imagePrompt);
+
+          // Post to Twitter
+          const credentials = {
+            apiKey: config.xApiKey,
+            apiSecret: config.xApiSecret,
+            accessToken: config.xAccessToken,
+            accessTokenSecret: config.xAccessTokenSecret,
+          };
+
+          const success = await postTweet(
+            credentials,
+            content.tweetText,
+            imageUrl,
+            article.url,
+            article.title,
+            article.source,
+            config.id
+          );
+
+          if (!success) {
+            throw new Error("Failed to post tweet");
+          }
+
+          return {
+            success: true,
+            message: "ツイートを投稿しました",
+            tweet: {
+              text: content.tweetText,
+              imageUrl,
+              sourceUrl: article.url,
+              sourceTitle: article.title,
+              sourceMedia: article.source,
+            },
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          throw new Error(`Failed to execute post: ${errorMessage}`);
+        }
       }),
   }),
 });
