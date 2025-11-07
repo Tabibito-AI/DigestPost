@@ -12,35 +12,35 @@ const DUMMY_ARTICLES: Array<{
 }> = [
   {
     title: "Global Markets Rally on Strong Economic Data",
-    url: "https://example.com/markets-rally",
+    url: "https://www.bbc.com/news/business",
     content:
       "Global stock markets experienced significant gains today as investors responded positively to stronger-than-expected economic data from multiple regions. The rally was led by technology and financial sectors, with major indices posting their best day in weeks. Analysts attribute the surge to optimism about economic recovery and potential interest rate adjustments. Central banks continue to monitor inflation trends closely.",
     source: "BBC News",
   },
   {
     title: "AI Breakthrough Announced by Leading Tech Company",
-    url: "https://example.com/ai-breakthrough",
+    url: "https://www.reuters.com/technology/",
     content:
       "A major technology company announced a significant breakthrough in artificial intelligence research today. The new model demonstrates improved efficiency and reduced computational requirements compared to previous generations. Industry experts believe this development could accelerate adoption of AI across various sectors. The company plans to make the technology available to researchers and developers in the coming months.",
     source: "Reuters",
   },
   {
     title: "Climate Summit Reaches Historic Agreement",
-    url: "https://example.com/climate-summit",
+    url: "https://www.theguardian.com/environment/climate-crisis",
     content:
       "Nations at the international climate summit have reached a historic agreement on emissions reduction targets. The accord commits participating countries to ambitious climate action plans over the next decade. Environmental organizations praised the agreement as a significant step forward in addressing climate change. Implementation details will be finalized at follow-up meetings scheduled for next quarter.",
     source: "The Guardian",
   },
   {
     title: "Space Agency Launches New Satellite Mission",
-    url: "https://example.com/satellite-mission",
+    url: "https://www.npr.org/sections/science/",
     content:
       "A major space agency successfully launched a new satellite designed to monitor environmental changes across the planet. The satellite will provide unprecedented data on climate patterns, ocean temperatures, and atmospheric conditions. Scientists expect the mission to significantly improve weather forecasting and climate modeling capabilities. The satellite is expected to remain operational for at least seven years.",
     source: "NPR",
   },
   {
     title: "Medical Researchers Develop Novel Treatment",
-    url: "https://example.com/medical-treatment",
+    url: "https://apnews.com/hub/health-science/",
     content:
       "Researchers at leading medical institutions have developed a novel treatment approach for a previously difficult-to-treat disease. Clinical trials have shown promising results with significantly improved patient outcomes. The treatment represents years of dedicated research and collaboration between multiple institutions. Regulatory approval is expected within the next two years, with potential availability to patients shortly thereafter.",
     source: "AP News",
