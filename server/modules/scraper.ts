@@ -2,79 +2,43 @@ import { chromium } from "playwright";
 import * as cheerio from "cheerio";
 
 /**
- * Dummy articles for fallback when scraping fails
- */
-const DUMMY_ARTICLES: Array<{
-  title: string;
-  url: string;
-  content: string;
-  source: string;
-}> = [
-  {
-    title: "Global Markets Rally on Strong Economic Data",
-    url: "https://www.bbc.com/news/business",
-    content:
-      "Global stock markets experienced significant gains today as investors responded positively to stronger-than-expected economic data from multiple regions. The rally was led by technology and financial sectors, with major indices posting their best day in weeks. Analysts attribute the surge to optimism about economic recovery and potential interest rate adjustments. Central banks continue to monitor inflation trends closely.",
-    source: "BBC News",
-  },
-  {
-    title: "AI Breakthrough Announced by Leading Tech Company",
-    url: "https://www.reuters.com/technology/",
-    content:
-      "A major technology company announced a significant breakthrough in artificial intelligence research today. The new model demonstrates improved efficiency and reduced computational requirements compared to previous generations. Industry experts believe this development could accelerate adoption of AI across various sectors. The company plans to make the technology available to researchers and developers in the coming months.",
-    source: "Reuters",
-  },
-  {
-    title: "Climate Summit Reaches Historic Agreement",
-    url: "https://www.theguardian.com/environment/climate-crisis",
-    content:
-      "Nations at the international climate summit have reached a historic agreement on emissions reduction targets. The accord commits participating countries to ambitious climate action plans over the next decade. Environmental organizations praised the agreement as a significant step forward in addressing climate change. Implementation details will be finalized at follow-up meetings scheduled for next quarter.",
-    source: "The Guardian",
-  },
-  {
-    title: "Space Agency Launches New Satellite Mission",
-    url: "https://www.npr.org/sections/science/",
-    content:
-      "A major space agency successfully launched a new satellite designed to monitor environmental changes across the planet. The satellite will provide unprecedented data on climate patterns, ocean temperatures, and atmospheric conditions. Scientists expect the mission to significantly improve weather forecasting and climate modeling capabilities. The satellite is expected to remain operational for at least seven years.",
-    source: "NPR",
-  },
-  {
-    title: "Medical Researchers Develop Novel Treatment",
-    url: "https://apnews.com/hub/health-science/",
-    content:
-      "Researchers at leading medical institutions have developed a novel treatment approach for a previously difficult-to-treat disease. Clinical trials have shown promising results with significantly improved patient outcomes. The treatment represents years of dedicated research and collaboration between multiple institutions. Regulatory approval is expected within the next two years, with potential availability to patients shortly thereafter.",
-    source: "AP News",
-  },
-];
-
-/**
- * News sources configuration with multiple selector options
+ * News sources configuration with real selectors
  */
 const NEWS_SOURCES = [
   {
+    name: "CNN",
+    url: "https://www.cnn.com",
+    articleSelector: "span.container__headline-text",
+    linkSelector: "a[data-analytics-title]",
+    contentSelector: "article, .article__content, .article-body, [data-testid='article-body']",
+  },
+  {
     name: "BBC News",
     url: "https://www.bbc.com/news",
-    selectors: ["h2 a", "h3 a", "a[data-testid]"],
+    articleSelector: "h2, h3",
+    linkSelector: "a[data-testid='internal-link']",
+    contentSelector: "article, [role='main'], .article-content",
+  },
+  {
+    name: "Bloomberg",
+    url: "https://www.bloomberg.com",
+    articleSelector: "h3",
+    linkSelector: "a",
+    contentSelector: "article, .article, [data-component-type='article']",
+  },
+  {
+    name: "Fox News",
+    url: "https://www.foxnews.com",
+    articleSelector: "h2, h3",
+    linkSelector: "a",
+    contentSelector: "article, .article-body, .article-content",
   },
   {
     name: "Reuters",
     url: "https://www.reuters.com",
-    selectors: ["a[data-testid='Link']", "h3 a", "a.link"],
-  },
-  {
-    name: "The Guardian",
-    url: "https://www.theguardian.com/international",
-    selectors: ["a[data-link-name='article']", "a[href*='/']"],
-  },
-  {
-    name: "NPR",
-    url: "https://www.npr.org",
-    selectors: ["a[data-testid='internal-link']", "h2 a", "a.story-link"],
-  },
-  {
-    name: "AP News",
-    url: "https://apnews.com",
-    selectors: ["a.Component-headline", "h2 a", "a[href*='apnews']"],
+    articleSelector: "h3, a[data-testid='Link']",
+    linkSelector: "a[data-testid='Link']",
+    contentSelector: "article, [role='main']",
   },
 ];
 
@@ -86,7 +50,7 @@ export interface ScrapedArticle {
 }
 
 /**
- * Scrape article content with improved error handling
+ * Scrape article content from URL
  */
 async function scrapeArticleContent(url: string): Promise<string> {
   let browser = null;
@@ -94,33 +58,37 @@ async function scrapeArticleContent(url: string): Promise<string> {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
-    // Set timeout and user agent
-    page.setDefaultTimeout(15000);
+    page.setDefaultTimeout(10000);
     await page.setExtraHTTPHeaders({
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     });
 
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 10000 });
+      // Wait for content to load
+      await page.waitForTimeout(1000);
     } catch (error) {
-      console.warn(
-        `[Scraper] Navigation timeout for ${url}, using partial content`
-      );
+      console.warn(`[Scraper] Navigation timeout for ${url}`);
     }
 
-    // Extract main content with multiple fallback selectors
     let content = "";
+
+    // Try multiple selectors
     const selectors = [
       "article",
       "[role='main']",
       ".article-body",
+      ".article-content",
       ".story-body",
       "main",
       ".content",
-      ".article-content",
       "[data-testid='article-body']",
       ".body-copy",
+      ".article",
+      ".post-content",
     ];
 
     for (const selector of selectors) {
@@ -128,22 +96,22 @@ async function scrapeArticleContent(url: string): Promise<string> {
         const element = await page.$(selector);
         if (element) {
           const text = await element.textContent();
-          if (text && text.length > 100) {
-            content = text;
+          if (text && text.trim().length > 200) {
+            content = text.trim();
             break;
           }
         }
       } catch (e) {
-        // Continue to next selector
+        // Continue
       }
     }
 
-    // Fallback: get all text from body
-    if (content.length < 100) {
+    // Fallback: get body text
+    if (content.length < 200) {
       try {
         const bodyText = await page.locator("body").textContent();
-        if (bodyText) {
-          content = bodyText;
+        if (bodyText && bodyText.trim().length > 200) {
+          content = bodyText.trim();
         }
       } catch (e) {
         // Ignore
@@ -154,29 +122,29 @@ async function scrapeArticleContent(url: string): Promise<string> {
     content = content
       .replace(/\s+/g, " ")
       .trim()
-      .substring(0, 2000);
+      .substring(0, 3000);
 
-    if (content.length < 50) {
-      return `Article from ${url}. Content extraction failed, but article is available.`;
+    if (content.length < 100) {
+      return `Article content from ${url}`;
     }
 
     return content;
   } catch (error) {
     console.error(`[Scraper] Failed to scrape content from ${url}:`, error);
-    return `Article from ${url}`;
+    return "";
   } finally {
     if (browser) {
       try {
         await browser.close();
       } catch (e) {
-        // Ignore close errors
+        // Ignore
       }
     }
   }
 }
 
 /**
- * Scrape articles from a news source with improved robustness
+ * Scrape articles from a news source
  */
 async function scrapeNewsSource(
   source: (typeof NEWS_SOURCES)[0]
@@ -186,22 +154,20 @@ async function scrapeNewsSource(
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
-    page.setDefaultTimeout(15000);
+    page.setDefaultTimeout(10000);
     await page.setExtraHTTPHeaders({
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     });
 
     try {
-      await page.goto(source.url, {
-        waitUntil: "domcontentloaded",
-        timeout: 15000,
-      });
+      await page.goto(source.url, { waitUntil: "domcontentloaded", timeout: 10000 });
+      // Wait for content to load
+      await page.waitForTimeout(1500);
     } catch (error) {
-      console.warn(
-        `[Scraper] Navigation timeout for ${source.name}, using cached content`
-      );
-      // Continue with partial content
+      console.warn(`[Scraper] Navigation timeout for ${source.name}`);
     }
 
     const html = await page.content();
@@ -210,53 +176,64 @@ async function scrapeNewsSource(
     const articles: ScrapedArticle[] = [];
     const seenUrls = new Set<string>();
 
-    // Try each selector
-    for (const selector of source.selectors) {
-      $(selector).each((_index: number, element: any) => {
-        try {
-          const $element = $(element);
-          const title = $element.text().trim();
-          let href = $element.attr("href");
+    // Get all links and extract article information
+    $(source.linkSelector).each((_index: number, element: any) => {
+      try {
+        const $element = $(element);
+        let title = $element.text().trim();
+        let href = $element.attr("href");
 
-          if (!href && $element.is("a")) {
-            href = $element.attr("href");
-          }
+        // Clean up title
+        title = title.substring(0, 300).trim();
 
-          if (title && href && title.length > 5) {
-            // Make absolute URL
-            let url = href;
-            if (!url.startsWith("http")) {
-              if (url.startsWith("/")) {
-                const sourceUrl = new URL(source.url);
-                url = sourceUrl.origin + url;
-              } else {
+        if (!href) {
+          href = $element.attr("href");
+        }
+
+        // Filter out invalid entries
+        if (title && href && title.length > 10 && !title.includes("Advertisement")) {
+          // Make absolute URL
+          let url = href;
+          if (!url.startsWith("http")) {
+            if (url.startsWith("/")) {
+              const sourceUrl = new URL(source.url);
+              url = sourceUrl.origin + url;
+            } else if (url.startsWith("//")) {
+              url = "https:" + url;
+            } else {
+              try {
                 const sourceUrl = new URL(source.url);
                 url = new URL(href, sourceUrl.origin).toString();
+              } catch (e) {
+                return; // Skip invalid URLs
               }
             }
-
-            // Avoid duplicates
-            if (!seenUrls.has(url) && url.length > 10) {
-              seenUrls.add(url);
-              articles.push({
-                title: title.substring(0, 200),
-                url,
-                content: "",
-                source: source.name,
-              });
-            }
           }
-        } catch (e) {
-          // Continue with next element
+
+          // Validate URL
+          try {
+            new URL(url);
+          } catch (e) {
+            return; // Skip invalid URLs
+          }
+
+          // Avoid duplicates and invalid URLs
+          if (!seenUrls.has(url) && url.length > 15 && !url.includes("javascript:")) {
+            seenUrls.add(url);
+            articles.push({
+              title,
+              url,
+              content: "",
+              source: source.name,
+            });
+          }
         }
-      });
-
-      // If we found articles, stop trying other selectors
-      if (articles.length > 0) {
-        break;
+      } catch (e) {
+        // Continue with next element
       }
-    }
+    });
 
+    console.log(`[Scraper] Found ${articles.length} articles from ${source.name}`);
     return articles;
   } catch (error) {
     console.error(`[Scraper] Failed to scrape ${source.name}:`, error);
@@ -266,24 +243,17 @@ async function scrapeNewsSource(
       try {
         await browser.close();
       } catch (e) {
-        // Ignore close errors
+        // Ignore
       }
     }
   }
 }
 
 /**
- * Get a random dummy article for testing/fallback
- */
-function getRandomDummyArticle(): ScrapedArticle {
-  return DUMMY_ARTICLES[Math.floor(Math.random() * DUMMY_ARTICLES.length)];
-}
-
-/**
- * Get a random article from a random news source with retry logic and fallback
+ * Get a random article from a random news source with retry logic
  */
 export async function getRandomArticle(): Promise<ScrapedArticle | null> {
-  const maxRetries = 2;
+  const maxRetries = 3;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -313,6 +283,12 @@ export async function getRandomArticle(): Promise<ScrapedArticle | null> {
       );
       const content = await scrapeArticleContent(article.url);
 
+      if (!content || content.length < 50) {
+        console.warn(`[Scraper] Content too short for ${article.url}, retrying...`);
+        lastError = new Error(`Content too short for article`);
+        continue;
+      }
+
       console.log(`[Scraper] Successfully scraped article: ${article.title}`);
       return {
         ...article,
@@ -327,17 +303,13 @@ export async function getRandomArticle(): Promise<ScrapedArticle | null> {
 
       // Wait before retry
       if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
   }
 
-  console.warn(
-    "[Scraper] All retry attempts failed, using dummy article:",
-    lastError?.message
-  );
-  // Fallback to dummy article
-  return getRandomDummyArticle();
+  console.error("[Scraper] All retry attempts failed:", lastError?.message);
+  return null;
 }
 
 /**
