@@ -22,31 +22,35 @@ export async function generateContent(
     const systemPrompt = `You are a professional news summarizer and creative content generator.
 
 Your task is to create:
-1. A compelling tweet summary in Japanese (max ${maxTweetLength} characters including emojis)
-2. An English image generation prompt
+1. A detailed yet concise tweet summary in Japanese (max ${maxTweetLength} characters including emojis)
+2. A manga/comic-style image generation prompt
 
 Guidelines for the tweet:
-- Keep it concise and engaging
-- Include 1-2 relevant emojis (e.g., 📈, 🌍, 💡, 🚀, 📰, 🔥)
+- Read the article carefully and extract key details
+- Explain the main points clearly and comprehensively within character limit
+- Include specific facts, numbers, or outcomes when relevant
+- Include 1-2 relevant emojis
 - Add line breaks for readability
-- Make it interesting and shareable
+- Make it engaging and informative
 - Do NOT include the URL in the tweet text (it will be added separately)
 - Count characters carefully - use full-width characters if needed
 
 Guidelines for the image prompt:
-- Describe a creative, eye-catching visual concept related to the article
-- Be specific and vivid
-- Make it suitable for AI image generation
+- Create a manga/comic-style visual (anime art style, comic book aesthetic)
+- Include bold outlines, vibrant colors, and dynamic composition
+- Add manga-style visual effects (speed lines, impact effects, dramatic lighting)
+- Make it eye-catching and visually interesting
+- Describe the scene with manga/anime art style specifics
 - Keep it in English
-- Focus on visual elements, colors, composition`;
+- Example style: "manga illustration, comic book art, anime style, bold outlines, vibrant colors"`;
 
     const userPrompt = `Article Title: ${articleTitle}
 
-Article Content: ${articleContent.substring(0, 1000)}
+Article Content: ${articleContent.substring(0, 2000)}
 
 Please generate:
-1. A tweet summary in Japanese (max ${maxTweetLength} characters)
-2. An English image generation prompt
+1. A detailed yet concise tweet summary in Japanese (max ${maxTweetLength} characters) that explains the key points, facts, and implications of the article
+2. A manga/comic-style image generation prompt that captures the essence of the article
 
 Format your response as JSON:
 {
@@ -73,7 +77,7 @@ Format your response as JSON:
               },
               imagePrompt: {
                 type: "string",
-                description: "Image generation prompt in English",
+                description: "Manga/comic-style image generation prompt in English with anime art style",
               },
             },
             required: ["tweetText", "imagePrompt"],
@@ -98,9 +102,14 @@ Format your response as JSON:
       console.warn(
         `[ContentGenerator] Tweet exceeds max length: ${tweetLength} > ${maxTweetLength}`
       );
-      // Truncate if necessary
+      // Truncate if necessary, preserving last emoji if present
       const chars = Array.from(parsed.tweetText);
-      parsed.tweetText = chars.slice(0, maxTweetLength).join("");
+      let truncated = chars.slice(0, maxTweetLength).join("");
+      // Ensure we don't cut off in the middle of an emoji
+      while (Array.from(truncated).length > maxTweetLength) {
+        truncated = Array.from(truncated).slice(0, -1).join("");
+      }
+      parsed.tweetText = truncated.trim();
     }
 
     return {
@@ -130,4 +139,13 @@ export function generateFallbackTweet(
   }
 
   return tweet;
+}
+
+/**
+ * Generate a fallback manga-style image prompt
+ */
+export function generateFallbackImagePrompt(
+  articleTitle: string
+): string {
+  return `Manga illustration, comic book art style, anime aesthetic, bold black outlines, vibrant colors, dynamic composition, dramatic lighting, speed lines, impact effects. Scene depicting: ${articleTitle.substring(0, 100)}. High energy, visually striking, professional manga art.`;
 }

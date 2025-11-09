@@ -2,13 +2,17 @@ import { generateImage } from "../_core/imageGeneration";
 
 /**
  * Generate an image for a tweet based on a prompt
+ * Enhances the prompt with manga/comic-style specifications
  */
 export async function generateTweetImage(prompt: string): Promise<string | null> {
   try {
-    console.log("[ImageGenerator] Generating image with prompt:", prompt);
+    // Enhance prompt with manga/comic-style specifications
+    const enhancedPrompt = `${prompt}. Manga illustration style, comic book art, anime aesthetic, bold black outlines, vibrant colors, dynamic composition, dramatic lighting, speed lines, impact effects, professional manga art, high quality illustration.`;
+    
+    console.log("[ImageGenerator] Generating manga-style image with prompt:", enhancedPrompt);
 
     const result = await generateImage({
-      prompt,
+      prompt: enhancedPrompt,
     });
 
     if (!result || !result.url) {
