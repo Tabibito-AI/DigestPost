@@ -1,0 +1,1 @@
+ALTER TABLE `user_configs` ADD `scheduleInterval` int DEFAULT 300 NOT NULL;

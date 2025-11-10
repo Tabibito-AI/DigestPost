@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2, Copy, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Copy, Check, Clock } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -56,6 +56,16 @@ export default function Settings() {
     },
   });
 
+  const updateScheduleMutation = trpc.config.updateScheduleInterval.useMutation({
+    onSuccess: () => {
+      showMessage('success', 'スケジュール間隔を更新しました');
+      refetch();
+    },
+    onError: (error) => {
+      showMessage('error', error.message);
+    },
+  });
+
   const handleAddConfig = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -87,6 +97,20 @@ export default function Settings() {
     setCopiedId(configId);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const handleUpdateSchedule = (configId: number, interval: number): void => {
+    updateScheduleMutation.mutate({ id: configId, scheduleInterval: interval });
+  };
+
+  const scheduleOptions = [
+    { value: 60, label: "1時間" },
+    { value: 180, label: "3時間" },
+    { value: 300, label: "5時間" },
+    { value: 360, label: "6時間" },
+    { value: 480, label: "8時間" },
+    { value: 720, label: "12時間" },
+    { value: 1440, label: "24時間" },
+  ];
 
   if (!user) {
     return (
@@ -244,6 +268,27 @@ export default function Settings() {
                         <p className="text-sm text-muted-foreground">
                           API Key: {config.xApiKey.substring(0, 4)}...{config.xApiKey.substring(config.xApiKey.length - 4)}
                         </p>
+                      </div>
+
+                      {/* Schedule Interval */}
+                      <div className="space-y-2">
+                        <Label htmlFor={`schedule-${config.id}`} className="text-sm flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          投稿間隔
+                        </Label>
+                        <select
+                          id={`schedule-${config.id}`}
+                          value={config.scheduleInterval}
+                          onChange={(e) => handleUpdateSchedule(config.id, parseInt(e.target.value))}
+                          className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                          disabled={updateScheduleMutation.isPending}
+                        >
+                          {scheduleOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Actions */}

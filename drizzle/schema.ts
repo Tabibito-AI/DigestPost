@@ -38,6 +38,7 @@ export const userConfigs = mysqlTable("user_configs", {
   xAccessToken: text("xAccessToken").notNull(),
   xAccessTokenSecret: text("xAccessTokenSecret").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
+  scheduleInterval: int("scheduleInterval").default(300).notNull(), // in minutes (300 = 5 hours)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -9,6 +9,7 @@ import {
   upsertUserConfig,
   deleteUserConfig,
   toggleUserConfigActive,
+  updateUserConfigScheduleInterval,
   getPostedTweetsByConfigId,
   getPostedTweetsCountByConfigId,
 } from "./db";
@@ -90,6 +91,15 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), isActive: z.boolean() }))
       .mutation(async ({ input }) => {
         return await toggleUserConfigActive(input.id, input.isActive);
+      }),
+
+    /**
+     * Update configuration schedule interval
+     */
+    updateScheduleInterval: protectedProcedure
+      .input(z.object({ id: z.number(), scheduleInterval: z.number().min(5).max(1440) }))
+      .mutation(async ({ input }) => {
+        return await updateUserConfigScheduleInterval(input.id, input.scheduleInterval);
       }),
   }),
 

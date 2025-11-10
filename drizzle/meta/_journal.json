@@ -15,6 +15,13 @@
       "when": 1762152556080,
       "tag": "0001_melodic_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1762768364145,
+      "tag": "0002_noisy_christian_walker",
+      "breakpoints": true
     }
   ]
 }

@@ -269,3 +269,26 @@ export async function getPostedTweetsCountByConfigId(configId: number) {
   const result = await db.select({ count: postedTweets.id }).from(postedTweets).where(eq(postedTweets.configId, configId));
   return result.length > 0 ? result[0].count : 0;
 }
+
+
+/**
+ * Update user configuration schedule interval
+ */
+export async function updateUserConfigScheduleInterval(configId: number, scheduleInterval: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update schedule interval: database not available");
+    return undefined;
+  }
+
+  try {
+    await db.update(userConfigs).set({
+      scheduleInterval,
+      updatedAt: new Date(),
+    }).where(eq(userConfigs.id, configId));
+    return await getUserConfigById(configId);
+  } catch (error) {
+    console.error("[Database] Failed to update schedule interval:", error);
+    throw error;
+  }
+}
